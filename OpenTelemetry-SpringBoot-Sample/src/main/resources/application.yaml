@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: Micrometer-testing
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://localhost:4300
+      protocol: grpc
+  propagators:
+    - b3
+  resource:
+    attributes:
+      deployment.environment: dev
+      service:
+        name: todo
+        namespace: toolbox
+  instrumentation:
+    micrometer:
+      enabled: true
+  metrics:
+    exemplar:
+      filter: ALWAYS_ON
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: [50ms, 100ms, 200ms, 300ms, 400ms, 500ms, 1000ms, 1500ms, 2000ms, 3000ms, 4000ms, 5000ms]
