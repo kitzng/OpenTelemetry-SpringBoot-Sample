@@ -1,0 +1,49 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4300
+      http:
+        endpoint: 0.0.0.0:4301
+
+exporters:
+  debug:
+    verbosity: detailed
+  prometheus:
+    endpoint: localhost:8889 #prometheus
+    enable_open_metrics: true #must be enabled to send exemplars: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/prometheusexporter/README.md#getting-started
+  otlp:
+    endpoint: localhost:4317 #tempo
+    tls:
+      insecure: true
+  loki:
+    endpoint: http://localhost:3100/loki/api/v1/push #loki
+    tls:
+      insecure: true
+
+extensions:
+  zpages:
+     endpoint: localhost:55679
+
+processors: # processors are not necessarily required, but could be beneficial, if there is a company-wide standard
+  attributes:
+    actions:
+      - action: insert
+        key: loki.attribute.labels #see https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/lokiexporter/README.md
+        value: traceID, spanID
+
+service:
+  extensions: [zpages]  # Enable zpages
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp]
+      # exporters: [debug, otlp]
+    logs:
+      receivers: [otlp]
+      exporters: [loki]
+      processors: [attributes]
+      # exporters: [debug, loki]

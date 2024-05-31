@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-stack
+  labels:
+    app: grafana-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-stack
+  template:
+    metadata:
+      labels:
+        app: grafana-stack
+    spec:
+      containers:
+      - name: otel-collector
+        image: docker.io/otel/opentelemetry-collector-contrib:latest
+        args: 
+          - --config=/var/lib/otel/otelconfig.yaml
+        ports:
+          - containerPort: 55679
+            hostPort: 55679
+            protocol: TCP
+          - containerPort: 4300
+            hostPort: 4300
+            protocol: TCP
+          - containerPort: 4301
+            hostPort: 4301
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /var/lib/otel/otelconfig.yaml
+            name: otel-config
+      - name: grafana
+        image: docker.io/grafana/grafana:latest
+        ports:
+          - containerPort: 3000
+            hostPort: 3000
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /etc/grafana/grafana.ini
+            name: grafana-config
+          - mountPath: /var/lib/grafana
+            name: grafana
+      - name: prometheus
+        image: docker.io/prom/prometheus:latest
+        args: 
+          - --enable-feature=exemplar-storage 
+          - --config.file=/var/lib/prometheus/promconfig.yaml
+        ports:
+          - containerPort: 8888
+            hostPort: 8888
+            protocol: TCP
+          - containerPort: 8889
+            hostPort: 8889
+            protocol: TCP
+          - containerPort: 9090
+            hostPort: 9090
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /var/lib/prometheus/promconfig.yaml
+            name: prometheus-config
+      - name: loki
+        image: docker.io/grafana/loki:latest
+        args:
+        - --config.file=/mnt/config/loki-local-config.yaml
+        securityContext:
+          runAsUser: 1000
+        ports:
+          - containerPort: 3100
+            hostPort: 3100
+            protocol: TCP
+          - containerPort: 9096
+            hostPort: 9096
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /tmp/loki
+            name: loki
+          - mountPath: /mnt/config/loki-local-config.yaml
+            name: loki-config
+      - name: tempo
+        image: docker.io/grafana/tempo:latest
+        args:
+        - --config.file=/mnt/config/tempo-local-config.yaml
+        ports:
+          - containerPort: 3200
+            hostPort: 3200
+            protocol: TCP
+          - containerPort: 9097
+            hostPort: 9097
+            protocol: TCP
+          - containerPort: 9411
+            hostPort: 9411
+            protocol: TCP
+          - containerPort: 14268
+            hostPort: 14268
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /tmp/tempo
+            name: tempo
+          - mountPath: /mnt/config/tempo-local-config.yaml
+            name: tempo-config
+      volumes:
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/grafana/data
+          type: Directory
+        name: grafana
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/grafana/grafana.ini
+          type: File
+        name: grafana-config
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/prometheus/promconfig.yaml
+          type: File
+        name: prometheus-config
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/mimir/data
+          type: Directory
+        name: mimir
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/mimir/mimir-local-config.yaml
+          type: File
+        name: mimir-config
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/loki/data
+          type: Directory
+        name: loki
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/loki/loki-local-config.yaml
+          type: File
+        name: loki-config
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/tempo/data
+          type: Directory
+        name: tempo
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/tempo/tempo-local-config.yaml
+          type: File
+        name: tempo-config
+      - hostPath:
+          path: /Users/maxkitzing/Desktop/grafana-stack-podman/otel-collector/otelconfig.yaml
+          type: File
+        name: otel-config
